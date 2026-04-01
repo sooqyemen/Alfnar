@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 
@@ -63,9 +63,16 @@ function getSafeImages(item) {
   return item.images.filter(Boolean);
 }
 
+function normalizePhoneDigits(phone) {
+  const digits = String(phone || '').replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.startsWith('0')) return `966${digits.slice(1)}`;
+  if (digits.startsWith('966')) return digits;
+  return digits;
+}
+
 export default function ListingDetailsPage({ params }) {
   const routeParams = useParams();
-
   const raw = params?.id ?? routeParams?.id;
   const rawId = Array.isArray(raw) ? raw[0] : raw;
 
@@ -82,6 +89,10 @@ export default function ListingDetailsPage({ params }) {
   const [err, setErr] = useState('');
   const [activeImage, setActiveImage] = useState(0);
   const [shareMsg, setShareMsg] = useState('');
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+
+  const touchStartX = useRef(0);
+  const touchEndX = useRef(0);
 
   useEffect(() => {
     let live = true;
@@ -141,9 +152,17 @@ export default function ListingDetailsPage({ params }) {
   const mapHref = useMemo(() => getMapHref(item), [item]);
   const locationText = useMemo(() => getLocationText(item), [item]);
 
-  const whatsappHref = useMemo(() => {
-    const phone = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '';
+  const contactPhone = useMemo(() => {
+    const directPhone =
+      item?.phone ||
+      item?.contactPhone ||
+      item?.mobile ||
+      item?.whatsapp ||
+      '';
+    return normalizePhoneDigits(directPhone || process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '');
+  }, [item]);
 
+  const whatsappHref = useMemo(() => {
     const text = item
       ? [
           'السلام عليكم، أرغب في الاستفسار عن هذا العرض:',
@@ -154,6 +173,7 @@ export default function ListingDetailsPage({ params }) {
           `الجزء: ${item.part || '—'}`,
           `نوع الصفقة: ${dealTypeLabel || '—'}`,
           `نوع العقار: ${item.propertyType || '—'}`,
+          item.licenseNumber ? `رقم الترخيص: ${item.licenseNumber}` : '',
           item.direct ? 'مباشر' : '',
           typeof window !== 'undefined' ? `الرابط: ${window.location.href}` : '',
         ]
@@ -161,8 +181,35 @@ export default function ListingDetailsPage({ params }) {
           .join('\n')
       : 'السلام عليكم، أرغب في الاستفسار عن أحد العروض العقارية.';
 
-    return buildWhatsAppLink({ phone, text });
-  }, [item, dealTypeLabel]);
+    return buildWhatsAppLink({ phone: contactPhone, text });
+  }, [item, dealTypeLabel, contactPhone]);
+
+  function goPrevImage() {
+    if (!images.length) return;
+    setActiveImage((prev) => (prev - 1 + images.length) % images.length);
+  }
+
+  function goNextImage() {
+    if (!images.length) return;
+    setActiveImage((prev) => (prev + 1) % images.length);
+  }
+
+  function handleTouchStart(e) {
+    touchStartX.current = e.changedTouches[0]?.clientX || 0;
+  }
+
+  function handleTouchEnd(e) {
+    touchEndX.current = e.changedTouches[0]?.clientX || 0;
+    const diff = touchStartX.current - touchEndX.current;
+
+    if (Math.abs(diff) < 40) return;
+
+    if (diff > 0) {
+      goNextImage();
+    } else {
+      goPrevImage();
+    }
+  }
 
   async function handleShare() {
     try {
@@ -261,34 +308,71 @@ export default function ListingDetailsPage({ params }) {
             <div className="mainCol">
               <div className="card galleryCard">
                 {selectedImage ? (
-                  <div className="mainImageWrap">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={selectedImage}
-                      alt={item.title || 'صورة العقار'}
-                      className="mainImage"
-                    />
-                  </div>
+                  <>
+                    <div
+                      className="mainImageWrap"
+                      onTouchStart={handleTouchStart}
+                      onTouchEnd={handleTouchEnd}
+                    >
+                      <button
+                        type="button"
+                        className="navBtn navPrev desktopOnly"
+                        onClick={goPrevImage}
+                        aria-label="الصورة السابقة"
+                      >
+                        ‹
+                      </button>
+
+                      <button
+                        type="button"
+                        className="imageButton"
+                        onClick={() => setLightboxOpen(true)}
+                        aria-label="فتح الصورة"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={selectedImage}
+                          alt={item.title || 'صورة العقار'}
+                          className="mainImage"
+                        />
+                      </button>
+
+                      <button
+                        type="button"
+                        className="navBtn navNext desktopOnly"
+                        onClick={goNextImage}
+                        aria-label="الصورة التالية"
+                      >
+                        ›
+                      </button>
+
+                      {images.length > 1 ? (
+                        <div className="mobileSwipeHint">اسحب يمين أو يسار للتنقل بين الصور</div>
+                      ) : null}
+                    </div>
+
+                    {images.length > 1 ? (
+                      <div className="thumbsScroller">
+                        <div className="thumbsRow">
+                          {images.map((src, idx) => (
+                            <button
+                              type="button"
+                              key={`${src}-${idx}`}
+                              className={`thumbBtn ${idx === activeImage ? 'active' : ''}`}
+                              onClick={() => setActiveImage(idx)}
+                              aria-label={`عرض الصورة ${idx + 1}`}
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={src} alt={`صورة ${idx + 1}`} className="thumbImage" />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                  </>
                 ) : (
                   <div className="emptyMedia">لا توجد صور لهذا الإعلان.</div>
                 )}
-
-                {images.length > 1 ? (
-                  <div className="thumbsRow">
-                    {images.map((src, idx) => (
-                      <button
-                        type="button"
-                        key={`${src}-${idx}`}
-                        className={`thumbBtn ${idx === activeImage ? 'active' : ''}`}
-                        onClick={() => setActiveImage(idx)}
-                        aria-label={`عرض الصورة ${idx + 1}`}
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={src} alt={`صورة ${idx + 1}`} className="thumbImage" />
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
               </div>
 
               <div className="card sectionCard">
@@ -303,6 +387,8 @@ export default function ListingDetailsPage({ params }) {
                   <InfoItem label="المخطط" value={item.plan} />
                   <InfoItem label="الجزء" value={item.part} />
                   <InfoItem label="رقم العرض" value={item.id || id} />
+                  <InfoItem label="رقم الترخيص" value={item.licenseNumber || item.license || ''} />
+                  <InfoItem label="الجوال المباشر" value={item.phone || item.contactPhone || item.mobile || item.whatsapp || ''} />
                   <InfoItem label="مباشر" value={item.direct ? 'نعم' : ''} />
                   <InfoItem
                     label="الإحداثيات"
@@ -367,10 +453,17 @@ export default function ListingDetailsPage({ params }) {
                     </div>
                   ) : null}
 
-                  {item.direct ? (
+                  {item.licenseNumber || item.license ? (
                     <div className="sideRow">
-                      <span>الحالة</span>
-                      <strong>مباشر</strong>
+                      <span>الترخيص</span>
+                      <strong>{item.licenseNumber || item.license}</strong>
+                    </div>
+                  ) : null}
+
+                  {(item.phone || item.contactPhone || item.mobile || item.whatsapp) ? (
+                    <div className="sideRow">
+                      <span>جوال المعلن</span>
+                      <strong>{item.phone || item.contactPhone || item.mobile || item.whatsapp}</strong>
                     </div>
                   ) : null}
                 </div>
@@ -395,6 +488,57 @@ export default function ListingDetailsPage({ params }) {
               </div>
             </aside>
           </section>
+
+          {lightboxOpen && selectedImage ? (
+            <div className="lightbox" onClick={() => setLightboxOpen(false)}>
+              <button
+                type="button"
+                className="lightboxClose"
+                onClick={() => setLightboxOpen(false)}
+                aria-label="إغلاق"
+              >
+                ×
+              </button>
+
+              {images.length > 1 ? (
+                <button
+                  type="button"
+                  className="lightboxNav lightboxPrev"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    goPrevImage();
+                  }}
+                  aria-label="السابق"
+                >
+                  ‹
+                </button>
+              ) : null}
+
+              <div
+                className="lightboxImageWrap"
+                onClick={(e) => e.stopPropagation()}
+                onTouchStart={handleTouchStart}
+                onTouchEnd={handleTouchEnd}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={selectedImage} alt={item.title || 'صورة العقار'} className="lightboxImage" />
+              </div>
+
+              {images.length > 1 ? (
+                <button
+                  type="button"
+                  className="lightboxNav lightboxNext"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    goNextImage();
+                  }}
+                  aria-label="التالي"
+                >
+                  ›
+                </button>
+              ) : null}
+            </div>
+          ) : null}
         </>
       )}
 
@@ -556,19 +700,83 @@ export default function ListingDetailsPage({ params }) {
         }
 
         .mainImageWrap {
+          position: relative;
           width: 100%;
-          aspect-ratio: 16 / 10;
+          min-height: 340px;
+          height: clamp(340px, 55vw, 620px);
           overflow: hidden;
           border-radius: 18px;
           border: 1px solid var(--border);
-          background: #f1f5f9;
+          background: #fff;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          touch-action: pan-y;
+        }
+
+        .imageButton {
+          width: 100%;
+          height: 100%;
+          display: block;
+          border: 0;
+          background: transparent;
+          padding: 0;
+          cursor: zoom-in;
         }
 
         .mainImage {
           width: 100%;
           height: 100%;
           display: block;
-          object-fit: cover;
+          object-fit: contain;
+          background: #fff;
+        }
+
+        .mobileSwipeHint {
+          position: absolute;
+          bottom: 12px;
+          right: 12px;
+          left: 12px;
+          padding: 8px 10px;
+          border-radius: 10px;
+          background: rgba(15, 23, 42, 0.55);
+          color: #fff;
+          font-size: 12px;
+          text-align: center;
+          pointer-events: none;
+          display: none;
+        }
+
+        .navBtn {
+          position: absolute;
+          top: 50%;
+          transform: translateY(-50%);
+          z-index: 3;
+          width: 46px;
+          height: 46px;
+          border-radius: 999px;
+          border: 1px solid rgba(255, 255, 255, 0.65);
+          background: rgba(15, 23, 42, 0.45);
+          color: #fff;
+          font-size: 30px;
+          line-height: 1;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          backdrop-filter: blur(6px);
+        }
+
+        .navPrev {
+          right: 14px;
+        }
+
+        .navNext {
+          left: 14px;
+        }
+
+        .desktopOnly {
+          display: inline-flex;
         }
 
         .emptyMedia {
@@ -584,25 +792,34 @@ export default function ListingDetailsPage({ params }) {
           background: #f8fafc;
         }
 
-        .thumbsRow {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
-          gap: 10px;
+        .thumbsScroller {
           margin-top: 12px;
+          overflow-x: auto;
+          overflow-y: hidden;
+          padding-bottom: 4px;
+          -webkit-overflow-scrolling: touch;
+        }
+
+        .thumbsRow {
+          display: flex;
+          gap: 10px;
+          min-width: max-content;
         }
 
         .thumbBtn {
+          width: 92px;
+          height: 72px;
+          flex: 0 0 auto;
           border: 1px solid var(--border);
           border-radius: 14px;
           background: #fff;
           padding: 0;
           overflow: hidden;
           cursor: pointer;
-          aspect-ratio: 1;
         }
 
         .thumbBtn.active {
-          border-color: rgba(214, 179, 91, 0.8);
+          border-color: rgba(214, 179, 91, 0.85);
           box-shadow: 0 0 0 3px rgba(214, 179, 91, 0.18);
         }
 
@@ -693,6 +910,68 @@ export default function ListingDetailsPage({ params }) {
           text-align: center;
         }
 
+        .lightbox {
+          position: fixed;
+          inset: 0;
+          z-index: 1000;
+          background: rgba(0, 0, 0, 0.88);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 24px;
+        }
+
+        .lightboxImageWrap {
+          width: min(96vw, 1200px);
+          height: min(88vh, 900px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .lightboxImage {
+          max-width: 100%;
+          max-height: 100%;
+          object-fit: contain;
+          display: block;
+        }
+
+        .lightboxClose {
+          position: absolute;
+          top: 18px;
+          left: 18px;
+          width: 46px;
+          height: 46px;
+          border: 0;
+          border-radius: 999px;
+          background: rgba(255, 255, 255, 0.16);
+          color: #fff;
+          font-size: 30px;
+          cursor: pointer;
+        }
+
+        .lightboxNav {
+          position: absolute;
+          top: 50%;
+          transform: translateY(-50%);
+          width: 52px;
+          height: 52px;
+          border: 0;
+          border-radius: 999px;
+          background: rgba(255, 255, 255, 0.16);
+          color: #fff;
+          font-size: 34px;
+          cursor: pointer;
+        }
+
+        .lightboxPrev {
+          right: 20px;
+        }
+
+        .lightboxNext {
+          left: 20px;
+        }
+
         @media (max-width: 900px) {
           .listingPageWrap {
             padding-top: 10px;
@@ -761,13 +1040,23 @@ export default function ListingDetailsPage({ params }) {
           }
 
           .mainImageWrap {
-            aspect-ratio: 4 / 3;
+            min-height: 260px;
+            height: 56vw;
+            max-height: 420px;
             border-radius: 14px;
           }
 
-          .thumbsRow {
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 8px;
+          .desktopOnly {
+            display: none;
+          }
+
+          .mobileSwipeHint {
+            display: block;
+          }
+
+          .thumbBtn {
+            width: 78px;
+            height: 62px;
           }
 
           .emptyMedia {
@@ -778,6 +1067,34 @@ export default function ListingDetailsPage({ params }) {
             align-items: flex-start;
             flex-direction: column;
             gap: 6px;
+          }
+
+          .lightbox {
+            padding: 10px;
+          }
+
+          .lightboxImageWrap {
+            width: 100%;
+            height: 78vh;
+          }
+
+          .lightboxNav {
+            width: 44px;
+            height: 44px;
+            font-size: 30px;
+          }
+
+          .lightboxPrev {
+            right: 10px;
+          }
+
+          .lightboxNext {
+            left: 10px;
+          }
+
+          .lightboxClose {
+            top: 10px;
+            left: 10px;
           }
         }
       `}</style>
