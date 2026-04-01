@@ -548,9 +548,21 @@ function CreateListingForm({ form, setForm, onSave, onReset, busy, createdId, up
             <div style={{ marginTop: 6 }}>{statusBadge(form.status)}</div>
           </Field>
 
-          <Field label="رقم الترخيص - اختياري">
-            <input className="input" value={form.licenseNumber} onChange={(e) => setForm((p) => ({ ...p, licenseNumber: e.target.value }))} placeholder="مثال: 1234567890" />
-          </Field>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <Field label="رقم الترخيص - اختياري">
+              <input className="input" value={form.licenseNumber} onChange={(e) => setForm((p) => ({ ...p, licenseNumber: e.target.value }))} placeholder="مثال: 7200xxxxxx" />
+            </Field>
+
+            <Field label="رقم الجوال المباشر - اختياري" hint="إذا كان الإعلان مباشرًا يمكن وضع رقم الموظف أو المسوّق ليتم التواصل معه بدل رقم المكتب.">
+              <input
+                className="input"
+                inputMode="tel"
+                value={form.contactPhone}
+                onChange={(e) => setForm((p) => ({ ...p, contactPhone: e.target.value.replace(/[^\d+]/g, '') }))}
+                placeholder="مثال: 0555666850 أو 966555666850"
+              />
+            </Field>
+          </div>
 
           <Field label="الوصف - اختياري" hint="يفضل كتابة أهم المميزات وقرب العقار من الطرق أو الخدمات.">
             <textarea className="input" rows={5} value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} style={{ resize: 'vertical' }} placeholder="مثال: أرض سكنية في حي الياقوت، قريبة من طريق رئيسي، مباشرة من المالك..." />
@@ -618,6 +630,8 @@ function CreateListingForm({ form, setForm, onSave, onReset, busy, createdId, up
             <ReviewRow label="المخطط" value={form.plan} />
             <ReviewRow label="الجزء" value={form.part} />
             <ReviewRow label="عدد الملفات" value={queue.length ? String(queue.length) : '0'} />
+            <ReviewRow label="رقم الترخيص" value={form.licenseNumber || '—'} />
+            <ReviewRow label="رقم الجوال المباشر" value={form.contactPhone || '—'} />
             <ReviewRow label="الموقع" value={form.lat && form.lng ? `${form.lat}, ${form.lng}` : 'غير محدد'} />
           </div>
 
@@ -672,6 +686,7 @@ export default function AddListingPage() {
       status: 'available',
       description: '',
       licenseNumber: '',
+      contactPhone: '',
       lat: '',
       lng: '',
       images: [],
@@ -743,6 +758,7 @@ export default function AddListingPage() {
         status: form.status || 'available',
         description: String(form.description || '').trim(),
         licenseNumber: String(form.licenseNumber || '').trim(),
+        contactPhone: String(form.contactPhone || '').trim(),
         lat: toNum(form.lat),
         lng: toNum(form.lng),
         images: uploader.urls.length ? uploader.urls : [],
