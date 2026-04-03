@@ -6,60 +6,58 @@ import AdminGuard from '@/components/admin/AdminGuard';
 import AdminShell from '@/components/admin/AdminShell';
 import { fetchListings } from '@/lib/listings';
 import { fetchRequests } from '@/lib/requestService';
-import { fetchInboxEntries } from '@/lib/inboxService';
+import { fetchInboxEntries, fetchExtractedItems } from '@/lib/inboxService';
 
 export default function AdminDashboardPage() {
   const [requests, setRequests] = useState([]);
   const [listings, setListings] = useState([]);
   const [inboxEntries, setInboxEntries] = useState([]);
+  const [extractedItems, setExtractedItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    let mounted = true;
-    async function load() {
-      setLoading(true);
-      setError('');
-      try {
-        const [nextListings, nextRequests, nextInbox] = await Promise.all([
-          fetchListings({ onlyPublic: false, max: 120 }),
-          fetchRequests(120),
-          fetchInboxEntries(60),
-        ]);
-        if (!mounted) return;
-        setListings(nextListings || []);
-        setRequests(nextRequests || []);
-        setInboxEntries(nextInbox || []);
-      } catch (err) {
-        if (!mounted) return;
-        setError('تعذر تحميل بيانات لوحة التحكم. تأكد من صلاحيات Firestore والفهارس المطلوبة.');
-      } finally {
-        if (mounted) setLoading(false);
-      }
+  async function load() {
+    setLoading(true);
+    setError('');
+    try {
+      const [nextListings, nextRequests, nextInbox, nextExtracted] = await Promise.all([
+        fetchListings({ onlyPublic: false, max: 120 }),
+        fetchRequests(120),
+        fetchInboxEntries(60),
+        fetchExtractedItems(80),
+      ]);
+      setListings(nextListings || []);
+      setRequests(nextRequests || []);
+      setInboxEntries(nextInbox || []);
+      setExtractedItems(nextExtracted || []);
+    } catch (_) {
+      setError('تعذر تحميل بيانات لوحة التحكم. تأكد من صلاحيات Firestore والفهارس المطلوبة.');
+    } finally {
+      setLoading(false);
     }
-    load();
-    return () => {
-      mounted = false;
-    };
-  }, []);
+  }
+
+  useEffect(() => { load(); }, []);
 
   const stats = useMemo(() => {
     const newRequests = requests.filter((item) => (item.status || 'new') === 'new').length;
-    const smartPending = inboxEntries.filter((item) => (item.status || 'review') !== 'approved').length;
+    const pendingReview = extractedItems.filter((item) => (item.extractionStatus || 'needs_review') === 'needs_review').length;
+    const autoSaved = extractedItems.filter((item) => item.extractionStatus === 'auto_saved').length;
     const directListings = listings.filter((item) => item.direct).length;
     return [
       { label: 'إجمالي العروض', value: listings.length },
       { label: 'العروض المباشرة', value: directListings },
       { label: 'طلبات جديدة', value: newRequests },
-      { label: 'وارد يحتاج مراجعة', value: smartPending },
+      { label: 'عناصر للمراجعة', value: pendingReview },
+      { label: 'محفوظ تلقائيًا', value: autoSaved },
     ];
-  }, [requests, listings, inboxEntries]);
+  }, [requests, listings, extractedItems]);
 
   return (
     <AdminGuard title="لوحة التحكم الداخلية">
       <AdminShell
         title="لوحة إدارة لؤلؤة الفنار"
-        description="من هنا تشوف الطلبات، تدخل المحادثات يدويًا أو بملف ZIP، وتعتمد نتائج الاستخراج ثم تبحث في العروض بأسلوب طبيعي."
+        description="الآن الوارد الذكي يحفظ العروض والطلبات الواضحة تلقائيًا، ويحوّل الغامض أو المكرر المحتمل إلى قائمة مراجعة قبل اعتماده."
         actions={[
           <Link key="add" href="/add" style={ctaStyle}>إضافة إعلان</Link>,
           <Link key="req" href="/admin/requests" style={secondaryStyle}>الطلبات</Link>,
@@ -91,24 +89,22 @@ export default function AdminDashboardPage() {
                   <div style={{ ...mutedStyle, direction: 'ltr', textAlign: 'left' }}>{item.phone || '—'}</div>
                 </div>
               ))}
-              {!requests.length && !loading ? <div style={mutedStyle}>لا توجد طلبات بعد.</div> : null}
             </div>
           </section>
 
           <section style={cardStyle}>
             <div style={sectionHeaderStyle}>
-              <h3 style={sectionTitleStyle}>آخر الوارد الذكي</h3>
+              <h3 style={sectionTitleStyle}>آخر المراجعات</h3>
               <Link href="/admin/inbox" style={linkStyle}>فتح الوارد</Link>
             </div>
             <div style={{ display: 'grid', gap: 10 }}>
-              {(inboxEntries || []).slice(0, 5).map((item) => (
+              {(extractedItems || []).slice(0, 5).map((item) => (
                 <div key={item.id} style={itemBoxStyle}>
-                  <div style={{ fontWeight: 700, color: '#0f172a' }}>{item.source?.contactName || 'مسوق'}</div>
-                  <div style={mutedStyle}>{item.source?.contactPhone || 'بدون رقم'}</div>
-                  <div style={mutedStyle}>{item.aiSummary || item.rawText?.slice(0, 120) || '—'}</div>
+                  <div style={{ fontWeight: 700, color: '#0f172a' }}>{item.summary || 'بدون ملخص'}</div>
+                  <div style={mutedStyle}>{item.source?.contactName || 'مسوق'} — {item.recordType === 'request' ? 'طلب' : item.recordType === 'listing' ? 'عرض' : 'متجاهل'}</div>
+                  <div style={mutedStyle}>الحالة: {item.extractionStatus || 'needs_review'}</div>
                 </div>
               ))}
-              {!inboxEntries.length && !loading ? <div style={mutedStyle}>لا توجد عناصر في الوارد بعد.</div> : null}
             </div>
           </section>
         </div>

@@ -25,42 +25,9 @@ export default function AdminShell({ title, description, actions, children }) {
 }
 
 function NavLink({ href, children }) {
-  return (
-    <Link href={href} style={linkStyle}>
-      {children}
-    </Link>
-  );
+  return <Link href={href} style={linkStyle}>{children}</Link>;
 }
 
-const navStyle = {
-  display: 'flex',
-  gap: 10,
-  flexWrap: 'wrap',
-  marginBottom: 16,
-};
-
-const linkStyle = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: 8,
-  padding: '10px 14px',
-  borderRadius: 999,
-  border: '1px solid #cbd5e1',
-  textDecoration: 'none',
-  color: '#0f172a',
-  background: '#fff',
-};
-
-const heroStyle = {
-  background: '#fff',
-  borderRadius: 18,
-  border: '1px solid #e5e7eb',
-  padding: 20,
-  marginBottom: 18,
-  boxShadow: '0 10px 25px rgba(15, 23, 42, 0.04)',
-  display: 'flex',
-  justifyContent: 'space-between',
-  gap: 12,
-  alignItems: 'flex-start',
-  flexWrap: 'wrap',
-};
+const navStyle = { display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 };
+const linkStyle = { display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 999, border: '1px solid #cbd5e1', textDecoration: 'none', color: '#0f172a', background: '#fff' };
+const heroStyle = { background: '#fff', borderRadius: 18, border: '1px solid #e5e7eb', padding: 20, marginBottom: 18, boxShadow: '0 10px 25px rgba(15, 23, 42, 0.04)', display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' };

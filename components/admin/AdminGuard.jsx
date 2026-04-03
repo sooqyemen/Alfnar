@@ -30,7 +30,7 @@ export default function AdminGuard({ title = 'لوحة التحكم', children }
     try {
       const { auth } = getFirebase();
       await signInWithEmailAndPassword(auth, email.trim(), password);
-    } catch (err) {
+    } catch (_) {
       setError('فشل تسجيل الدخول. تأكد من البريد وكلمة المرور.');
     } finally {
       setSubmitting(false);
@@ -53,26 +53,10 @@ export default function AdminGuard({ title = 'لوحة التحكم', children }
           <h1 style={titleStyle}>{title}</h1>
           <p style={mutedStyle}>سجل دخولك ببريد الأدمن حتى تظهر الأدوات الداخلية.</p>
           <form onSubmit={handleLogin} style={{ display: 'grid', gap: 12 }}>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="البريد الإلكتروني"
-              style={inputStyle}
-              required
-            />
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="كلمة المرور"
-              style={inputStyle}
-              required
-            />
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="البريد الإلكتروني" style={inputStyle} required />
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="كلمة المرور" style={inputStyle} required />
             {error ? <div style={errorStyle}>{error}</div> : null}
-            <button type="submit" style={buttonStyle} disabled={submitting}>
-              {submitting ? 'جاري تسجيل الدخول...' : 'دخول الأدمن'}
-            </button>
+            <button type="submit" style={buttonStyle} disabled={submitting}>{submitting ? 'جاري تسجيل الدخول...' : 'دخول الأدمن'}</button>
           </form>
           <Link href="/account" style={linkStyle}>العودة إلى الحساب</Link>
         </div>
@@ -107,32 +91,9 @@ export default function AdminGuard({ title = 'لوحة التحكم', children }
   );
 }
 
-const pageStyle = {
-  minHeight: '100vh',
-  background: '#f8fafc',
-  padding: '24px 16px 48px',
-};
-
-const cardStyle = {
-  maxWidth: 480,
-  margin: '40px auto',
-  background: '#fff',
-  borderRadius: 16,
-  padding: 24,
-  boxShadow: '0 10px 30px rgba(15, 23, 42, 0.08)',
-  border: '1px solid #e5e7eb',
-};
-
-const headerStyle = {
-  maxWidth: 1200,
-  margin: '0 auto 20px',
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  gap: 12,
-  flexWrap: 'wrap',
-};
-
+const pageStyle = { minHeight: '100vh', background: '#f8fafc', padding: '24px 16px 48px' };
+const cardStyle = { maxWidth: 480, margin: '40px auto', background: '#fff', borderRadius: 16, padding: 24, boxShadow: '0 10px 30px rgba(15, 23, 42, 0.08)', border: '1px solid #e5e7eb' };
+const headerStyle = { maxWidth: 1200, margin: '0 auto 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' };
 const titleStyle = { margin: 0, fontSize: 28, color: '#0f172a' };
 const mutedStyle = { color: '#475569', lineHeight: 1.8 };
 const smallMutedStyle = { color: '#64748b', fontSize: 13, marginBottom: 8 };

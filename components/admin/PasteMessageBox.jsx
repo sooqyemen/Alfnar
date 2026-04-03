@@ -14,7 +14,7 @@ export default function PasteMessageBox({ onAnalyze, loading = false }) {
     rawText: '',
   });
   const [localError, setLocalError] = useState('');
-  const [zipInfo, setZipInfo] = useState('');
+  const [fileInfo, setFileInfo] = useState('');
 
   function updateField(key, value) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -35,9 +35,9 @@ export default function PasteMessageBox({ onAnalyze, loading = false }) {
         contactPhone: normalizeSaudiPhone(form.contactPhone),
         contactRole: form.contactRole.trim() || 'مسوق',
       },
-      importMode: zipInfo ? 'zip' : 'paste',
-      fileName: zipInfo,
-      fileType: zipInfo ? 'zip' : 'text',
+      importMode: fileInfo ? 'file' : 'paste',
+      fileName: fileInfo,
+      fileType: fileInfo ? (fileInfo.toLowerCase().endsWith('.zip') ? 'zip' : 'txt') : 'text',
     });
   }
 
@@ -49,7 +49,7 @@ export default function PasteMessageBox({ onAnalyze, loading = false }) {
       if (file.name.toLowerCase().endsWith('.txt')) {
         const text = await file.text();
         updateField('rawText', text);
-        setZipInfo(file.name);
+        setFileInfo(file.name);
         return;
       }
       if (file.name.toLowerCase().endsWith('.zip')) {
@@ -61,11 +61,9 @@ export default function PasteMessageBox({ onAnalyze, loading = false }) {
           if (!name.toLowerCase().endsWith('.txt')) continue;
           chunks.push(`----- ${name} -----\n${strFromU8(data)}`);
         }
-        if (!chunks.length) {
-          throw new Error('لم يتم العثور على ملفات TXT داخل ملف ZIP.');
-        }
+        if (!chunks.length) throw new Error('لم يتم العثور على ملفات TXT داخل ملف ZIP.');
         updateField('rawText', chunks.join('\n\n'));
-        setZipInfo(file.name);
+        setFileInfo(file.name);
         return;
       }
       throw new Error('الملف المدعوم هو TXT أو ZIP فقط.');
@@ -78,6 +76,12 @@ export default function PasteMessageBox({ onAnalyze, loading = false }) {
 
   return (
     <div style={cardStyle}>
+      <div style={headerStyle}>
+        <div>
+          <h3 style={{ margin: 0, color: '#0f172a' }}>إدخال المحادثة</h3>
+          <div style={mutedStyle}>الصق رسالة واحدة، محادثة كاملة، أو ارفع TXT / ZIP. العروض والطلبات الواضحة تُحفظ تلقائيًا، والغامضة تذهب للمراجعة.</div>
+        </div>
+      </div>
       <div style={gridStyle}>
         <div>
           <label style={labelStyle}>نوع المصدر</label>
@@ -90,8 +94,8 @@ export default function PasteMessageBox({ onAnalyze, loading = false }) {
           </select>
         </div>
         <div>
-          <label style={labelStyle}>اسم صاحب العرض</label>
-          <input value={form.contactName} onChange={(e) => updateField('contactName', e.target.value)} style={inputStyle} placeholder="مثال: أبو خالد" />
+          <label style={labelStyle}>اسم صاحب العرض / المجموعة</label>
+          <input value={form.contactName} onChange={(e) => updateField('contactName', e.target.value)} style={inputStyle} placeholder="مثال: شوقي أو مؤسسة بن هشبل" />
         </div>
         <div>
           <label style={labelStyle}>رقم الجوال</label>
@@ -102,29 +106,24 @@ export default function PasteMessageBox({ onAnalyze, loading = false }) {
           <select value={form.contactRole} onChange={(e) => updateField('contactRole', e.target.value)} style={inputStyle}>
             <option>مسوق</option>
             <option>مالك</option>
+            <option>مباشر من المالك</option>
             <option>مكتب</option>
             <option>وسيط</option>
           </select>
         </div>
       </div>
+
       <div style={{ marginTop: 16 }}>
         <label style={labelStyle}>النص الخام أو المحادثة</label>
-        <textarea
-          value={form.rawText}
-          onChange={(e) => updateField('rawText', e.target.value)}
-          style={textareaStyle}
-          placeholder="ألصق رسالة واتساب أو عدة رسائل هنا، أو ارفع ملف محادثة."
-        />
+        <textarea value={form.rawText} onChange={(e) => updateField('rawText', e.target.value)} style={textareaStyle} placeholder="ألصق محادثة واتساب أو عدة رسائل هنا..." />
       </div>
+
       <div style={toolbarStyle}>
-        <button type="button" style={buttonStyle} onClick={() => fileInputRef.current?.click()}>
-          رفع TXT أو ZIP
-        </button>
-        <button type="button" style={primaryButtonStyle} onClick={handleAnalyze} disabled={loading}>
-          {loading ? 'جاري التحليل...' : 'تحليل بالذكاء الاصطناعي'}
-        </button>
-        {zipInfo ? <div style={mutedStyle}>تم تجهيز الملف: {zipInfo}</div> : null}
+        <button type="button" style={buttonStyle} onClick={() => fileInputRef.current?.click()}>رفع TXT أو ZIP</button>
+        <button type="button" style={primaryButtonStyle} onClick={handleAnalyze} disabled={loading}>{loading ? 'جاري التحليل...' : 'تحليل وحفظ'}</button>
+        {fileInfo ? <div style={mutedStyle}>تم تجهيز الملف: {fileInfo}</div> : null}
       </div>
+
       {localError ? <div style={errorStyle}>{localError}</div> : null}
       <input ref={fileInputRef} type="file" accept=".txt,.zip" hidden onChange={handleFileChange} />
     </div>
@@ -132,12 +131,13 @@ export default function PasteMessageBox({ onAnalyze, loading = false }) {
 }
 
 const cardStyle = { background: '#fff', borderRadius: 18, padding: 18, border: '1px solid #e5e7eb', boxShadow: '0 10px 25px rgba(15,23,42,0.04)' };
+const headerStyle = { display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', marginBottom: 12 };
 const gridStyle = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 };
 const labelStyle = { display: 'block', marginBottom: 8, color: '#334155', fontSize: 14 };
 const inputStyle = { width: '100%', padding: '12px 14px', borderRadius: 12, border: '1px solid #cbd5e1', background: '#fff' };
-const textareaStyle = { width: '100%', minHeight: 260, padding: 14, borderRadius: 14, border: '1px solid #cbd5e1', resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.8 };
+const textareaStyle = { width: '100%', minHeight: 280, padding: 14, borderRadius: 14, border: '1px solid #cbd5e1', resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.8 };
 const toolbarStyle = { display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', marginTop: 16 };
 const buttonStyle = { padding: '11px 15px', borderRadius: 12, border: '1px solid #cbd5e1', background: '#fff', color: '#0f172a', cursor: 'pointer' };
 const primaryButtonStyle = { ...buttonStyle, background: '#0f172a', color: '#fff', border: 'none' };
-const mutedStyle = { color: '#64748b', fontSize: 13 };
+const mutedStyle = { color: '#64748b', fontSize: 13, lineHeight: 1.7 };
 const errorStyle = { marginTop: 12, padding: 12, borderRadius: 12, background: '#fee2e2', color: '#991b1b' };

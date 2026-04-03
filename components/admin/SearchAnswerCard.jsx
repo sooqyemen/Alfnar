@@ -34,12 +34,7 @@ export default function SearchAnswerCard({ answer, results = [] }) {
 }
 
 function Info({ label, value }) {
-  return (
-    <div style={infoStyle}>
-      <div style={infoLabelStyle}>{label}</div>
-      <div style={infoValueStyle}>{value}</div>
-    </div>
-  );
+  return <div style={infoStyle}><div style={infoLabelStyle}>{label}</div><div style={infoValueStyle}>{value}</div></div>;
 }
 
 const cardStyle = { background: '#fff', borderRadius: 18, padding: 18, border: '1px solid #e5e7eb', boxShadow: '0 10px 25px rgba(15,23,42,0.04)' };

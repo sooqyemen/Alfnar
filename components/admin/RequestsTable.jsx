@@ -20,7 +20,7 @@ export default function RequestsTable({ requests = [], onRefresh }) {
     try {
       await updateRequestStatus(id, value);
       onRefresh?.();
-    } catch (err) {
+    } catch (_) {
       setError('تعذر تحديث حالة الطلب.');
     } finally {
       setSavingId('');
@@ -40,14 +40,13 @@ export default function RequestsTable({ requests = [], onRefresh }) {
               <th style={thStyle}>الطلب</th>
               <th style={thStyle}>الموقع</th>
               <th style={thStyle}>الميزانية</th>
+              <th style={thStyle}>المصدر</th>
               <th style={thStyle}>الحالة</th>
             </tr>
           </thead>
           <tbody>
             {requests.length ? requests.map((item) => {
-              const createdLabel = typeof item.createdAt?.toDate === 'function'
-                ? item.createdAt.toDate().toLocaleString('ar-SA')
-                : '—';
+              const createdLabel = typeof item.createdAt?.toDate === 'function' ? item.createdAt.toDate().toLocaleString('ar-SA') : '—';
               const budget = item.budgetMax || item.budgetMin ? `${formatPriceSAR(item.budgetMin || 0)} — ${formatPriceSAR(item.budgetMax || 0)}` : '—';
               return (
                 <tr key={item.id}>
@@ -57,22 +56,16 @@ export default function RequestsTable({ requests = [], onRefresh }) {
                   <td style={tdStyle}>{[item.dealType, item.propertyType].filter(Boolean).join(' / ') || '—'}</td>
                   <td style={tdStyle}>{[item.neighborhood, item.plan, item.part].filter(Boolean).join(' — ') || '—'}</td>
                   <td style={tdStyle}>{budget}</td>
+                  <td style={tdStyle}>{item.sourceContactName || item.sourceType || '—'}</td>
                   <td style={tdStyle}>
-                    <select
-                      value={item.status || 'new'}
-                      onChange={(e) => handleChange(item.id, e.target.value)}
-                      disabled={savingId === item.id}
-                      style={selectStyle}
-                    >
+                    <select value={item.status || 'new'} onChange={(e) => handleChange(item.id, e.target.value)} disabled={savingId === item.id} style={selectStyle}>
                       {STATUS_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                     </select>
                   </td>
                 </tr>
               );
             }) : (
-              <tr>
-                <td colSpan={7} style={emptyStyle}>لا توجد طلبات حالياً.</td>
-              </tr>
+              <tr><td colSpan={8} style={emptyStyle}>لا توجد طلبات حالياً.</td></tr>
             )}
           </tbody>
         </table>
@@ -82,7 +75,7 @@ export default function RequestsTable({ requests = [], onRefresh }) {
 }
 
 const wrapStyle = { background: '#fff', borderRadius: 18, border: '1px solid #e5e7eb', overflow: 'hidden' };
-const tableStyle = { width: '100%', borderCollapse: 'collapse', minWidth: 960 };
+const tableStyle = { width: '100%', borderCollapse: 'collapse', minWidth: 1080 };
 const thStyle = { textAlign: 'right', padding: 14, background: '#f8fafc', borderBottom: '1px solid #e5e7eb', color: '#334155', fontSize: 14 };
 const tdStyle = { padding: 14, borderBottom: '1px solid #f1f5f9', color: '#0f172a', verticalAlign: 'top' };
 const emptyStyle = { padding: 24, textAlign: 'center', color: '#64748b' };
