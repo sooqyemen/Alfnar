@@ -57,25 +57,34 @@ function deriveConversationTitle(fileName) {
 }
 
 function parseWhatsAppMessages(rawText) {
-  const text = normalizeText(rawText);
-  const lines = text.split(/\r?\n/);
+  const lines = String(rawText || '').split(/?
+/);
   const messages = [];
-  const headerRegex = /^(?:\[)?(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}),?\s+(\d{1,2}:\d{2}(?:\s?[APMapmصممس]{1,4})?)(?:\])?\s+-\s([^:]+):\s?(.*)$/;
+  // Supports WhatsApp exports like:
+  // [29/8/2025، 6:35:22 م] Sender: text
+  // 29/8/2025, 6:35 PM - Sender: text
+  const headerRegex = /^\s*(?:\[)?[‎‏‪-‮﻿\s]*?(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\s*[،,]?\s*(\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM|am|pm|ص|م|صباحًا|مساءً)?)\s*(?:\])?\s*(?:-|–|—)?\s*([^:]+):\s?(.*)$/u;
   let current = null;
 
-  for (const line of lines) {
+  for (const rawLine of lines) {
+    const line = stripBidi(rawLine);
     const match = line.match(headerRegex);
     if (match) {
       if (current) messages.push(current);
       current = {
-        timestamp: `${match[1]} ${match[2]}`,
+        timestamp: `${match[1]} ${match[2]}`.trim(),
         sender: String(match[3] || '').trim(),
         text: String(match[4] || '').trim(),
       };
-    } else if (current) {
-      current.text += `\n${line}`;
-    } else if (line.trim()) {
-      current = { timestamp: '', sender: '', text: line.trim() };
+      continue;
+    }
+
+    if (current) {
+      const extra = String(rawLine || '').trim();
+      if (extra) current.text += `
+${stripBidi(extra)}`;
+    } else if (String(rawLine || '').trim()) {
+      current = { timestamp: '', sender: '', text: stripBidi(rawLine).trim() };
     }
   }
   if (current) messages.push(current);
@@ -167,7 +176,7 @@ function classifyGroupHeuristic(group, payload, conversationTitle) {
     };
     return {
       recordType: 'request',
-      extractionStatus: confidence >= 0.83 ? 'auto_saved' : 'needs_review',
+      extractionStatus: confidence >= 0.74 ? 'auto_saved' : 'needs_review',
       confidence,
       summary: buildRequestSummary(request),
       request,
@@ -195,7 +204,7 @@ function classifyGroupHeuristic(group, payload, conversationTitle) {
     };
     return {
       recordType: 'listing',
-      extractionStatus: confidence >= 0.83 ? 'auto_saved' : 'needs_review',
+      extractionStatus: confidence >= 0.74 ? 'auto_saved' : 'needs_review',
       confidence,
       summary: buildListingSummary(listing),
       listing,
@@ -543,7 +552,11 @@ function isPureFollowup(text) {
 }
 
 function normalizeText(text) {
-  return replaceArabicDigits(String(text || '').replace(/\u200e|\u200f/g, '').trim());
+  return replaceArabicDigits(stripBidi(String(text || '')).trim());
+}
+
+function stripBidi(text) {
+  return String(text || '').replace(/[‎‏‪-‮﻿]/g, '').replace(/ /g, ' ');
 }
 
 function replaceArabicDigits(text) {
