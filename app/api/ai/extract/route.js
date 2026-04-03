@@ -57,8 +57,7 @@ function deriveConversationTitle(fileName) {
 }
 
 function parseWhatsAppMessages(rawText) {
-  const lines = String(rawText || '').split(/?
-/);
+  const lines = String(rawText || '').split(/\r?\n/);
   const messages = [];
   // Supports WhatsApp exports like:
   // [29/8/2025، 6:35:22 م] Sender: text
