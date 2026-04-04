@@ -346,11 +346,14 @@ function useUploader(storage) {
 
       for (const file of picked) {
         const safeName = String(file.name || 'file').replace(/[^\w.\-]+/g, '_');
-        const refPath = `abhur_uploads/${Date.now()}_${Math.random().toString(16).slice(2)}_${safeName}`;
+        const refPath = `fanar_images/listings/draft_${Date.now()}_${Math.random().toString(16).slice(2)}_${safeName}`;
         const refObj = storageRef(storage, refPath);
-        const myIndex = queue.length;
+        let tempKey = '';
 
-        setQueue((prev) => [...prev, { name: file.name || 'file', progress: 0, url: '', refPath }]);
+        setQueue((prev) => {
+          tempKey = `${Date.now()}_${Math.random().toString(16).slice(2)}`;
+          return [...prev, { key: tempKey, name: file.name || 'file', progress: 0, url: '', refPath, kind: String(file.type || '').startsWith('video/') ? 'video' : 'image' }];
+        });
 
         await new Promise((resolve) => {
           const task = uploadBytesResumable(refObj, file);
@@ -358,18 +361,18 @@ function useUploader(storage) {
             'state_changed',
             (snap) => {
               const pct = snap.totalBytes ? Math.round((snap.bytesTransferred / snap.totalBytes) * 100) : 0;
-              setQueue((prev) => prev.map((x, i) => (i === myIndex ? { ...x, progress: pct } : x)));
+              setQueue((prev) => prev.map((x) => (x.key === tempKey ? { ...x, progress: pct } : x)));
             },
             () => {
-              setQueue((prev) => prev.filter((_, i) => i !== myIndex));
+              setQueue((prev) => prev.filter((x) => x.key !== tempKey));
               resolve();
             },
             async () => {
               try {
                 const url = await getDownloadURL(task.snapshot.ref);
-                setQueue((prev) => prev.map((x, i) => (i === myIndex ? { ...x, url, progress: 100 } : x)));
+                setQueue((prev) => prev.map((x) => (x.key === tempKey ? { ...x, url, progress: 100 } : x)));
               } catch {
-                setQueue((prev) => prev.filter((_, i) => i !== myIndex));
+                setQueue((prev) => prev.filter((x) => x.key !== tempKey));
               }
               resolve();
             }
@@ -382,8 +385,14 @@ function useUploader(storage) {
     [storage, queue.length]
   );
 
-  const urls = useMemo(() => queue.map((q) => q.url).filter(Boolean), [queue]);
-  return { queue, setQueue, uploading, addFiles, removeAt, urls };
+  const media = useMemo(
+    () => queue
+      .filter((q) => q.url)
+      .map((q) => ({ url: q.url, refPath: q.refPath || '', name: q.name || '', kind: q.kind || 'image' })),
+    [queue]
+  );
+  const urls = useMemo(() => media.map((q) => q.url).filter(Boolean), [media]);
+  return { queue, setQueue, uploading, addFiles, removeAt, urls, media };
 }
 
 function StepHeader({ step, setStep }) {
@@ -762,6 +771,7 @@ export default function AddListingPage() {
         lat: toNum(form.lat),
         lng: toNum(form.lng),
         images: uploader.urls.length ? uploader.urls : [],
+        imagesMeta: uploader.media.length ? uploader.media : [],
         updatedAt: new Date(),
       };
 
@@ -776,7 +786,7 @@ export default function AddListingPage() {
     } finally {
       setSaving(false);
     }
-  }, [form, uploader.urls]);
+  }, [form, uploader.urls, uploader.media]);
 
   if (checking) {
     return (

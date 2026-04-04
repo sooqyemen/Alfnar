@@ -10,6 +10,7 @@ export default function AdminShell({ title, description, actions, children }) {
         <NavLink href="/admin/requests">الطلبات</NavLink>
         <NavLink href="/admin/inbox">الوارد الذكي</NavLink>
         <NavLink href="/admin/search">البحث الذكي</NavLink>
+        <NavLink href="/admin/listings">العروض</NavLink>
         <NavLink href="/add">إضافة إعلان</NavLink>
       </nav>
       <div style={heroStyle}>
