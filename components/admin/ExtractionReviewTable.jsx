@@ -11,7 +11,7 @@ const FILTERS = [
   { value: 'ignored', label: 'متجاهل' },
 ];
 
-export default function ExtractionReviewTable({ items = [], onApprove, onIgnore, onRefresh }) {
+export default function ExtractionReviewTable({ items = [], onApprove, onIgnore, onDelete, onRefresh }) {
   const [activeFilter, setActiveFilter] = useState('all');
   const [busyId, setBusyId] = useState('');
   const [message, setMessage] = useState('');
@@ -108,6 +108,7 @@ export default function ExtractionReviewTable({ items = [], onApprove, onIgnore,
                   <button type="button" style={buttonStyle} disabled={busy} onClick={() => handleApprove(item)}>{busy ? 'جاري...' : isRequest ? 'اعتماد الطلب' : 'اعتماد العرض'}</button>
                 ) : null}
                 {item.extractionStatus !== 'ignored' ? <button type="button" style={secondaryStyle} disabled={busy} onClick={() => handleIgnore(item)}>تجاهل</button> : null}
+                <button type="button" style={dangerStyle} disabled={busy} onClick={async () => { setBusy(item.id); try { await onDelete?.(item); } finally { setBusy(''); } }}>حذف نهائي</button>
               </div>
             </div>
           );
@@ -172,3 +173,5 @@ const actionsStyle = { display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 14
 const buttonStyle = { padding: '11px 14px', borderRadius: 12, border: 'none', background: '#0f172a', color: '#fff', cursor: 'pointer' };
 const secondaryStyle = { padding: '11px 14px', borderRadius: 12, border: '1px solid #cbd5e1', background: '#fff', color: '#0f172a', cursor: 'pointer' };
 const emptyStyle = { padding: 20, textAlign: 'center', color: '#64748b' };
+
+const dangerStyle = { padding: '11px 14px', borderRadius: 12, border: '1px solid #fecaca', background: '#fff1f2', color: '#b91c1c', cursor: 'pointer' };

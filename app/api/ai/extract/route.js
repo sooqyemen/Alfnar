@@ -138,8 +138,11 @@ function classifyGroupHeuristic(group, payload, conversationTitle) {
   const price = extractPrice(text);
   const phone = extractPhone(text) || source.contactPhone;
   const direct = /مباشر|مباشرة|مباشر من المالك|زبون مباشر|المالك/.test(text);
-  const requestLike = /مطلوب|ابحث|أبحث|زبون|عميل|احتاج|أحتاج/.test(text);
-  const listingLike = /للبيع|بيع|للايجار|للإيجار|شقة للإيجار|أرض للبيع|فيلا للبيع|عمارة للبيع|شقة للبيع|وكيل إفراغ|صك|شارع/.test(text);
+  const hasStrongListingWords = /للبيع|للايجار|للإيجار|أرض للبيع|فيلا للبيع|عمارة للبيع|شقة للبيع|شقة للإيجار|للبيع في|مباشر من المالك|مباشرة من المالك|وكيل إفراغ|صك|شارع\s*\d+|رقم\s*\d+/i.test(text);
+  const hasRequestWords = /(?:^|
+|\s)(مطلوب|ابحث|أبحث|ابغى|أبغى|احتاج|أحتاج)(?:\s|$)|زبون|عميل/.test(text);
+  const requestLike = hasRequestWords && !hasStrongListingWords;
+  const listingLike = hasStrongListingWords || (/بيع|إيجار|ايجار/.test(text) && !!(propertyType || neighborhood || part || plan || price || area));
   const hasLocation = !!(neighborhood || part || plan);
   const hasCore = !!(price || area || propertyType);
 

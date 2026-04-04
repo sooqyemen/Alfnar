@@ -13,6 +13,7 @@ import {
   saveExtractedItems,
   saveInboxEntry,
   updateExtractedItemStatus,
+  deleteExtractedItemEverywhere,
 } from '@/lib/inboxService';
 
 export default function AdminInboxPage() {
@@ -53,8 +54,12 @@ export default function AdminInboxPage() {
       const autoSaved = savedItems.filter((item) => item.extractionStatus === 'auto_saved' && (item.recordType === 'listing' || item.recordType === 'request'));
       for (const item of autoSaved) {
         try {
-          await promoteExtractedItem(item);
-          await updateExtractedItemStatus(item.id, 'auto_saved', { promotedAt: new Date() });
+          const promoted = await promoteExtractedItem(item);
+          await updateExtractedItemStatus(item.id, 'auto_saved', {
+            promotedAt: new Date(),
+            promotedDocId: promoted?.id || '',
+            promotedCollection: promoted?.collection || '',
+          });
         } catch (_) {
           await updateExtractedItemStatus(item.id, 'needs_review', { reason: 'فشل الحفظ النهائي، راجع العنصر يدويًا.' });
         }
@@ -71,12 +76,23 @@ export default function AdminInboxPage() {
   }
 
   async function handleApprove(item) {
-    await promoteExtractedItem(item);
-    await updateExtractedItemStatus(item.id, 'auto_saved', { promotedAt: new Date() });
+    const promoted = await promoteExtractedItem(item);
+    await updateExtractedItemStatus(item.id, 'auto_saved', {
+      promotedAt: new Date(),
+      promotedDocId: promoted?.id || '',
+      promotedCollection: promoted?.collection || '',
+    });
+    await load();
   }
 
   async function handleIgnore(item) {
     await updateExtractedItemStatus(item.id, 'ignored');
+    await load();
+  }
+
+  async function handleDelete(item) {
+    await deleteExtractedItemEverywhere(item);
+    await load();
   }
 
   const stats = useMemo(() => {
@@ -103,7 +119,7 @@ export default function AdminInboxPage() {
 
         <div style={{ display: 'grid', gap: 16 }}>
           <PasteMessageBox onAnalyze={handleAnalyze} loading={loading} />
-          <ExtractionReviewTable items={items} onApprove={handleApprove} onIgnore={handleIgnore} onRefresh={load} />
+          <ExtractionReviewTable items={items} onApprove={handleApprove} onIgnore={handleIgnore} onDelete={handleDelete} onRefresh={load} />
           <div style={cardStyle}>
             <h3 style={{ marginTop: 0, color: '#0f172a' }}>آخر الملفات أو الإدخالات</h3>
             <div style={{ display: 'grid', gap: 10 }}>
