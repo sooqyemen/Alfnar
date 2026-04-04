@@ -4,17 +4,29 @@ service cloud.firestore {
     function isAdmin() {
       return request.auth != null && request.auth.token.email != null && request.auth.token.email in ['admin@example.com'];
     }
+
     function isPublicListing() {
       return (resource.data.status in ['available', 'reserved']) && !(resource.data.hidden == true);
     }
+
     match /fanar_listings/{docId} {
       allow read: if isPublicListing() || isAdmin();
       allow create, update, delete: if isAdmin();
     }
+
     match /fanar_requests/{docId} {
       allow create: if true;
       allow read, update, delete: if isAdmin();
     }
+
+    match /fanar_inbox_entries/{docId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
+    match /fanar_extracted_items/{docId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
     match /listings/{docId} {
       allow read, write: if isAdmin();
     }

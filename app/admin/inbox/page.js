@@ -14,6 +14,7 @@ import {
   saveInboxEntry,
   updateExtractedItemStatus,
   deleteExtractedItemEverywhere,
+  deleteExtractedItemsBulk,
 } from '@/lib/inboxService';
 
 export default function AdminInboxPage() {
@@ -29,7 +30,7 @@ export default function AdminInboxPage() {
       setRecentEntries(entries || []);
       setItems(extracted || []);
     } catch (_) {
-      setError('تعذر تحميل عناصر الوارد الذكي.');
+      setError('تعذر تحميل عناصر الوارد الذكي. تأكد من قواعد Firestore وصلاحيات الأدمن.');
     }
   }
 
@@ -91,7 +92,14 @@ export default function AdminInboxPage() {
   }
 
   async function handleDelete(item) {
+    setError('');
     await deleteExtractedItemEverywhere(item);
+    await load();
+  }
+
+  async function handleBulkDelete(selectedItems) {
+    setError('');
+    await deleteExtractedItemsBulk(selectedItems);
     await load();
   }
 
@@ -119,7 +127,14 @@ export default function AdminInboxPage() {
 
         <div style={{ display: 'grid', gap: 16 }}>
           <PasteMessageBox onAnalyze={handleAnalyze} loading={loading} />
-          <ExtractionReviewTable items={items} onApprove={handleApprove} onIgnore={handleIgnore} onDelete={handleDelete} onRefresh={load} />
+          <ExtractionReviewTable
+            items={items}
+            onApprove={handleApprove}
+            onIgnore={handleIgnore}
+            onDelete={handleDelete}
+            onBulkDelete={handleBulkDelete}
+            onRefresh={load}
+          />
           <div style={cardStyle}>
             <h3 style={{ marginTop: 0, color: '#0f172a' }}>آخر الملفات أو الإدخالات</h3>
             <div style={{ display: 'grid', gap: 10 }}>
